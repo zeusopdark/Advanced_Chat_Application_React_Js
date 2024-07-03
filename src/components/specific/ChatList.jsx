@@ -28,6 +28,7 @@ const ChatList = ({
             name={name}
             _id={_id}
             key={_id}
+            groupChat={groupChat}
             sameSender={chatId === _id}
             handleDeleteChatOpen={handleDeleteChat}
           />

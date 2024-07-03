@@ -2,6 +2,7 @@ import React, { Suspense, lazy, useState } from "react";
 import {
   AppBar,
   Backdrop,
+  Badge,
   Box,
   IconButton,
   Toolbar,
@@ -18,38 +19,58 @@ import {
   Notifications,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
+import toast from "react-hot-toast";
+import { server } from "../../constants/config";
+import { useDispatch, useSelector } from "react-redux";
+import { userNotExists } from "../../redux/reducers/auth";
+import {
+  setIsMobileMenu,
+  setIsNewGroup,
+  setIsNotification,
+  setIsSearch,
+} from "../../redux/reducers/misc";
+import { resetNotificationCount } from "../../redux/reducers/chat";
 const Search = lazy(() => import("../specific/Search"));
 const NotificationDialog = lazy(() => import("../specific/Notifications"));
 const NewGroupDialog = lazy(() => import("../specific/NewGroup"));
 
 const Header = () => {
   const navigate = useNavigate();
+  const { isSearch, isNotification,isNewGroup } = useSelector((state) => state.misc);
+  const { notificationCount } = useSelector((state) => state.chat);
 
-  const [mobile, setMobile] = useState(false);
-  const [isSearch, setSearch] = useState(false);
-  const [isNewGroup, setIsNewGroup] = useState(false);
-  const [isNotification, setIsNotification] = useState(false);
-
-  const handleMobile = () => {
-    setMobile((prev) => !prev);
+  const dispatch = useDispatch();
+  const handleMobile = async () => {
+    dispatch(setIsMobileMenu(true));
   };
 
   const openSearchDialog = () => {
-    setSearch((prev) => !prev);
+    dispatch(setIsSearch(true));
   };
 
   const openNewGroup = () => {
-    setIsNewGroup((prev) => !prev);
+    dispatch(setIsNewGroup(true));
   };
+
   const openNotification = () => {
-    setIsNotification((prev) => !prev);
+    dispatch(setIsNotification(true));
+    dispatch(resetNotificationCount());
   };
 
   const navigateToGroup = () => {
     navigate("/groups");
   };
 
-  const handleLogout = () => {};
+  const handleLogout = async () => {
+    try {
+      const { data } = await axios.get(`${server}/api/v1/user/logout`);
+      toast.success(data.message);
+      dispatch(userNotExists());
+    } catch (err) {
+      toast.error(err?.response?.data?.message);
+    }
+  };
 
   return (
     <>
@@ -88,6 +109,7 @@ const Header = () => {
                 title={"Notifications"}
                 icon={<Notifications />}
                 onClick={openNotification}
+                value={notificationCount}
               />
               <IconBtn
                 title={"Logout"}
@@ -116,14 +138,21 @@ const Header = () => {
     </>
   );
 };
-const IconBtn = ({ title, icon, onClick }) => {
+const IconBtn = ({ title, icon, onClick, value }) => {
   return (
     <Tooltip title={title}>
       <IconButton color="inherit" size="large" onClick={onClick}>
-        {icon}
+        {value ? (
+          <Badge badgeContent={value} color="error">
+            {icon}
+          </Badge>
+        ) : (
+          icon
+        )}
       </IconButton>
     </Tooltip>
   );
 };
+
 
 export default Header;

@@ -1,27 +1,52 @@
-import React, { useState } from "react";
+import { useInputValidation } from "6pp";
+import { Search as SearchIcon } from "@mui/icons-material";
 import {
   Dialog,
   DialogTitle,
   InputAdornment,
   List,
-  ListItem,
-  ListItemText,
   Stack,
   TextField,
 } from "@mui/material";
-import { useInputValidation } from "6pp";
-import { Search as SearchIcon } from "@mui/icons-material";
+import React, { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { useAsyncMutation } from "../../hooks/hook";
+import {
+  useLazySearchUserQuery,
+  useSendFriendRequestMutation,
+} from "../../redux/api/api";
+import { setIsSearch } from "../../redux/reducers/misc";
 import UserItem from "../shared/UserItem";
-import { sampleUsers } from "../../constants/sampledata";
-
 const Search = () => {
-  const search = useInputValidation();
-  let isLoadingSendFriendRequest = false;
-  const [users, setUsers] = useState(sampleUsers);
-  const addFriendHandler = () => {};
+  const dispatch = useDispatch();
+  const search = useInputValidation("");
+  const [sendFriendRequest, isLoadingSendFriendRequest] = useAsyncMutation(
+    useSendFriendRequestMutation
+  );
 
+  const { isSearch } = useSelector((state) => state.misc);
+  const [searchUser] = useLazySearchUserQuery();
+  const [users, setUsers] = useState([]);
+
+  const addFriendHandler = async (id) => {
+    await sendFriendRequest("Sending Friend request...", { userId: id });
+  };
+  const handleClose = () => {
+    dispatch(setIsSearch(false));
+  };
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      searchUser(search.value)
+        .then(({ data }) => setUsers(data.users))
+        .catch((err) => console.log(err));
+    }, 1000);
+    return () => {
+      // cleanup function when again the useEffect will run the first thing is that this cleanup function will run first
+      clearTimeout(timeoutId);
+    };
+  }, [search.value]);
   return (
-    <Dialog open>
+    <Dialog open={isSearch} onClose={handleClose}>
       <Stack p={"2rem"} width={"25rem"} direction={"column"}>
         <DialogTitle textAlign={"center"}>Find People</DialogTitle>
         <TextField

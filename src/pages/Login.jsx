@@ -13,6 +13,11 @@ import React, { useState } from "react";
 import { VisuallyHiddenInput } from "../components/styles/StyledComponent";
 import { useFileHandler, useInputValidation, useStrongPassword } from "6pp";
 import { usernameValidator } from "../utils/validators";
+import { server } from "../constants/config";
+import { useDispatch } from "react-redux";
+import { userExists } from "../redux/reducers/auth";
+import toast from "react-hot-toast";
+import axios from "axios";
 const Login = () => {
   const [isLogin, setIsLogin] = useState(true);
   const name = useInputValidation("");
@@ -20,12 +25,50 @@ const Login = () => {
   const password = useStrongPassword("");
   const bio = useInputValidation("");
   const avatar = useFileHandler("single");
-
-  const handleLogin = (e) => {
+  const dispatch = useDispatch();
+  const handleLogin = async (e) => {
     e.preventDefault();
+    const config = {
+      withCredentials: true,
+      headers: { "Content-Type": "application/json" },
+    };
+    try {
+      const { data } = await axios.post(
+        `${server}/api/v1/user/login`,
+        {
+          username: username.value,
+          password: password.value,
+        },
+        config
+      );
+      dispatch(userExists(true));
+      toast.success(data.message);
+    } catch (err) {
+      console.log(err);
+      toast.error(err.response?.data?.message || "Something went wrong");
+    }
   };
-  const handleSignIn = (e) => {
+  const handleSignIn = async (e) => {
     e.preventDefault();
+    const formData = new FormData();
+    formData.append("avatar", avatar.file);
+    formData.append("name", name.value);
+    formData.append("bio", bio.value);
+    formData.append("username", username.value);
+    formData.append("password", password.value);
+
+    try {
+      const { data } = await axios.post(`${server}/api/v1/user/new`, formData, {
+        withCredentials: true,
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      dispatch(userExists(true));
+      toast.success(data.message);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Something went wrong");
+    }
   };
   return (
     <div

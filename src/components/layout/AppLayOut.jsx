@@ -1,24 +1,91 @@
-import React from "react";
-import Header from "./Header";
+import { Drawer, Grid, Skeleton } from "@mui/material";
+import React, { useCallback, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { useNavigate, useParams } from "react-router-dom";
+import { useErrors, useSocketEvents } from "../../../src/hooks/hook";
+import { useMyChatsQuery } from "../../redux/api/api";
+import {
+  setIsDeleteMenu,
+  setIsMobileMenu,
+  setSelectedDeleteChat,
+} from "../../redux/reducers/misc";
 import Title from "../shared/Title";
-import { Grid } from "@mui/material";
 import ChatList from "../specific/ChatList";
-import { sampleChats } from "../../constants/sampledata";
-import { useParams } from "react-router-dom";
 import Profile from "../specific/Profile";
+import Header from "./Header";
+import { New_Message_Alert, New_Request, Refetch } from "../../constants/event";
+import {
+  incrementNotification,
+  setNewMessagesALert,
+} from "../../redux/reducers/chat";
+import { getSocket } from "../../socket";
+import { getOrSaveFromStorage } from "../../lib/features";
+import DeleteChatMenu from "../dialogs/DeleteChatMenu";
+import { useRef } from "react";
 const AppLayOut = () => (WrappedComponent) => {
   return (props) => {
+    const dispatch = useDispatch();
+    const navigate = useNavigate();
     const params = useParams();
     const chatId = params.chatId;
-    console.log(chatId);
-    const handleDeleteChat = (e, _id, groupChat) => {
-      e.preventDefault();
-      console.log("Delete Chat", _id, groupChat);
+    const socket = getSocket();
+    const { isLoading, data, isError, error, refetch } = useMyChatsQuery("");
+    const { isMobileMenu } = useSelector((state) => state.misc);
+    const { newMessageAlert } = useSelector((state) => state.chat);
+    const deleteMenuAnchor = useRef();
+    const handleDeleteChat = (e,chatId, groupChat) => {
+      dispatch(setIsDeleteMenu(true));
+      dispatch(setSelectedDeleteChat({ chatId, groupChat }));
+      deleteMenuAnchor.current = e.currentTarget;
     };
+
+    const handleMobileClose = async () => {
+      dispatch(setIsMobileMenu(false));
+    };
+    const newMessageAlertHandler = useCallback((data) => {
+      if (data.chatId === chatId) return;
+      dispatch(setNewMessagesALert(data));
+    }, []);
+    const newRequestHandler = useCallback(() => {
+      dispatch(incrementNotification());
+    }, [dispatch]);
+    const refetchListener = useCallback(() => {
+      refetch();
+      navigate("/");
+    }, [refetch, navigate]);
+
+    const eventHandlers = {
+      [New_Message_Alert]: newMessageAlertHandler,
+      [New_Request]: newRequestHandler,
+      [Refetch]: refetchListener,
+    };
+    useSocketEvents(socket, eventHandlers);
+
+    useErrors([{ isError, error }]);
+    useEffect(() => {
+      getOrSaveFromStorage({ key: New_Message_Alert, value: newMessageAlert });
+    }, [newMessageAlert]);
     return (
       <>
         <Title />
         <Header />
+        <DeleteChatMenu
+          dispatch={dispatch}
+          deleteMenuAnchor={deleteMenuAnchor}
+        />
+        {isLoading ? (
+          <Skeleton />
+        ) : (
+          <Drawer open={isMobileMenu} onClose={handleMobileClose}>
+            <ChatList
+              w="70vw"
+              chats={data?.chats}
+              chatId={chatId}
+              handleDeleteChat={handleDeleteChat}
+              newMessagesAlert={newMessageAlert}
+            />
+          </Drawer>
+        )}
         <Grid container height={"calc(100vh - 4rem)"}>
           <Grid
             item
@@ -27,14 +94,19 @@ const AppLayOut = () => (WrappedComponent) => {
             sx={{ display: { xs: "none", sm: "block" } }}
             height={"100%"}
           >
-            <ChatList
-              chats={sampleChats}
-              chatId={chatId}
-              handleDeleteChat={handleDeleteChat}
-            />
+            {isLoading ? (
+              <Skeleton />
+            ) : (
+              <ChatList
+                chats={data?.chats}
+                chatId={chatId}
+                handleDeleteChat={handleDeleteChat}
+                newMessagesAlert={newMessageAlert}
+              />
+            )}
           </Grid>
           <Grid item xs={12} sm={8} md={5} lg={6} height={"100%"}>
-            <WrappedComponent {...props} />
+            <WrappedComponent {...props} chatId={chatId} />
           </Grid>
           <Grid
             item

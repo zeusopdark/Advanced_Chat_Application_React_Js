@@ -6,7 +6,9 @@ import {
   CalendarMonth as CalendarIcon,
 } from "@mui/icons-material";
 import moment from "moment";
+import { useSelector } from "react-redux";
 const Profile = () => {
+  const { user } = useSelector((state) => state.auth);
   return (
     <Stack spacing={"2rem"} alignItems={"center"}>
       <Avatar
@@ -17,18 +19,19 @@ const Profile = () => {
           marginBottom: "1rem",
           border: "5px solid white",
         }}
+        src={user?.avatar?.url}
       />
 
-      <ProfileCard heading={"bio"} text={"acsjcsjkcbscnjnksjabcdjk"} />
+      <ProfileCard heading={"bio"} text={user?.bio} />
       <ProfileCard
         heading={"username"}
-        text={"someone"}
+        text={user?.username}
         Icon={<UsernameIcon />}
       />
-      <ProfileCard heading={"Name"} text={"Someone"} Icon={<FaceIcon />} />
+      <ProfileCard heading={"Name"} text={user?.name} Icon={<FaceIcon />} />
       <ProfileCard
         heading={"Joined"}
-        text={moment("2023-11-04T18:30:00.000Z").fromNow()}
+        text={moment(user?.createdAt).fromNow()}
         Icon={<CalendarIcon />}
       />
     </Stack>

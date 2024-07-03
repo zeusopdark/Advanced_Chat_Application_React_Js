@@ -10,6 +10,7 @@ import {
   Backdrop,
   Box,
   Button,
+  CircularProgress,
   Drawer,
   Grid,
   IconButton,
@@ -19,12 +20,23 @@ import {
   Typography,
 } from "@mui/material";
 import React, { Suspense, lazy, memo, useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { matBlack, orange } from "../constants/color";
-import { Link } from "../components/styles/StyledComponent";
+import { useAsyncMutation, useErrors } from "../../src/hooks/hook";
 import AvatarCard from "../components/layout/AvatarCard";
-import { sampleChats, sampleUsers } from "../constants/sampledata";
+import { LayoutLoader } from "../components/layout/Loaders";
 import UserItem from "../components/shared/UserItem";
+import { Link } from "../components/styles/StyledComponent";
+import { matBlack, orange } from "../constants/color";
+import {
+  useChatDetailsQuery,
+  useDeleteChatMutation,
+  useMyGroupsQuery,
+  useRemoveGroupMemberMutation,
+  useRenameGroupMutation
+} from "../redux/api/api";
+import { setIsAddMember } from "../redux/reducers/misc";
+
 const ConfirmDeleteDialog = lazy(() =>
   import("../components/dialogs/ConfirmDeleteDialog")
 );
@@ -32,14 +44,58 @@ const AddMemberDialog = lazy(() =>
   import("../components/dialogs/AddMemberDialog")
 );
 const Groups = () => {
+  const dispatch = useDispatch();
+  const { isAddMember } = useSelector((state) => state.misc);
+
   const [isMobileMenuIconOpen, setIsMobileMenuIconOpen] = useState(false);
   const [isEdit, setIsEdit] = useState(false);
   const [groupName, setGroupName] = useState("");
+  const chatId = useSearchParams()[0].get("group");
+  const [members, setMembers] = useState([]);
   const [groupNameUpdatedValue, setGroupNameUpdatedValue] = useState("");
   const [confirmDeleteDialog, setConfrimDeleteDialog] = useState(false);
+
+
+  const myGroups = useMyGroupsQuery("");
+  const groupDetails = useChatDetailsQuery(
+    { chatId, populate: true },
+    { skip: !chatId }
+  );
+
+  const [updateGroup, isLoading] = useAsyncMutation(useRenameGroupMutation);
+  const [removeMember, isLoadingRemoveMember] = useAsyncMutation(
+    useRemoveGroupMemberMutation
+  );
+  const [deleteGroup, isLoadingDeleteGroup] = useAsyncMutation(
+    useDeleteChatMutation
+  );
+
   const navigate = useNavigate();
-  const chatId = useSearchParams()[0].get("group");
-  const isAddMemeber = false;
+  const errors = [
+    {
+      isError: myGroups.isError,
+      error: myGroups.error,
+    },
+    {
+      isError: groupDetails.isError,
+      error: groupDetails.error,
+    },
+  ];
+  useErrors(errors);
+  useEffect(() => {
+    if (groupDetails.data) {
+      setGroupName(groupDetails?.data?.chat?.name);
+      setGroupNameUpdatedValue(groupDetails?.data?.chat?.name);
+      setMembers(groupDetails?.data?.chat?.members);
+    }
+    return () => {
+      setGroupName("");
+      setGroupNameUpdatedValue("");
+      setMembers([]);
+      setIsEdit(false);
+    };
+  }, [groupDetails.data]);
+
   const naviagteBack = () => {
     navigate("/");
   };
@@ -49,9 +105,12 @@ const Groups = () => {
   const handleMobileClose = () => {
     setIsMobileMenuIconOpen((prev) => !prev);
   };
-  const updateGroupNameHandler = (e) => {
-    e.preventDefault();
-    setIsEdit((prev) => !prev);
+  const updateGroupNameHandler = () => {
+    setIsEdit(false);
+    updateGroup("Updating Group Name...", {
+      chatId,
+      name: groupNameUpdatedValue,
+    });
   };
   const openConfirmDeleteHandler = () => {
     setConfrimDeleteDialog(true);
@@ -59,15 +118,23 @@ const Groups = () => {
   const closeConfirmDeleteHandler = () => {
     setConfrimDeleteDialog(false);
   };
-  const openAddMemberHandler = () => {};
-  const deleteHandler = () => {};
+  const openAddMemberHandler = () => {
+    dispatch(setIsAddMember(true));
+  };
+  const deleteHandler = () => {
+    deleteGroup("Deleting Group...", chatId);
+    closeConfirmDeleteHandler();
+    navigate("/groups");
+  };
 
-  const removeMemberHandler = (id) => {
-    console.log(id);
+  const removeMemberHandler = (userId) => {
+    removeMember("Removing member...", { chatId, userId });
   };
   useEffect(() => {
-    setGroupName(`Group Name ${chatId ? chatId : ""}`);
-    setGroupNameUpdatedValue(`Group Name${chatId ? chatId : ""}`);
+    if (chatId) {
+      setGroupName(`Group Name ${chatId}`);
+      setGroupNameUpdatedValue(`Group Name ${chatId}`);
+    }
     return () => {
       setGroupName("");
       setGroupNameUpdatedValue("");
@@ -75,75 +142,71 @@ const Groups = () => {
     };
   }, [chatId]);
 
-  const IconBtns = () => {
-    return (
-      <>
-        <Box
-          sx={{
-            display: {
-              xs: "block",
-              sm: "none",
-              position: "fixed",
-              right: "1rem",
-              top: "1rem",
-            },
-          }}
-        >
-          <IconButton onClick={handleMobile}>
-            <Menu />
-          </IconButton>
-        </Box>
-        <Tooltip title="back" />
-        <IconButton
-          sx={{
-            position: "absolute",
-            top: "2rem",
-            left: "2rem",
-            bgcolor: matBlack,
-            color: "white",
-            ":hover": {
-              bgcolor: "rgba(0,0,0,0.7)",
-            },
-          }}
-          onClick={naviagteBack}
-        >
-          <KeyboardBackspace />
-        </IconButton>
-      </>
-    );
-  };
-  const GroupName = () => {
-    return (
-      <Stack
-        direction={"row"}
-        alignItems={"center"}
-        justifyContent={"center"}
-        spacing={"1rem"}
-        padding={"3rem"}
+  const IconBtns = (
+    <>
+      <Box
+        sx={{
+          display: {
+            xs: "block",
+            sm: "none",
+            position: "fixed",
+            right: "1rem",
+            top: "1rem",
+          },
+        }}
       >
-        {isEdit ? (
-          <>
-            <TextField
-              value={groupNameUpdatedValue}
-              onChange={(e) => {
-                setGroupNameUpdatedValue(e.target.value);
-              }}
-            />
-            <IconButton onClick={updateGroupNameHandler}>
-              <Done />
-            </IconButton>
-          </>
-        ) : (
-          <>
-            <Typography variant="h4">{groupName}</Typography>
-            <IconButton onClick={updateGroupNameHandler}>
-              <Edit />
-            </IconButton>
-          </>
-        )}
-      </Stack>
-    );
-  };
+        <IconButton onClick={handleMobile}>
+          <Menu />
+        </IconButton>
+      </Box>
+      <Tooltip title="back" />
+      <IconButton
+        sx={{
+          position: "absolute",
+          top: "2rem",
+          left: "2rem",
+          bgcolor: matBlack,
+          color: "white",
+          ":hover": {
+            bgcolor: "rgba(0,0,0,0.7)",
+          },
+        }}
+        onClick={naviagteBack}
+      >
+        <KeyboardBackspace />
+      </IconButton>
+    </>
+  );
+
+  const GroupName = (
+    <Stack
+      direction={"row"}
+      alignItems={"center"}
+      justifyContent={"center"}
+      spacing={"1rem"}
+      padding={"3rem"}
+    >
+      {isEdit ? (
+        <>
+          <TextField
+            value={groupNameUpdatedValue}
+            onChange={(e) => setGroupNameUpdatedValue(e.target.value)}
+          />
+          <IconButton onClick={updateGroupNameHandler} disabled={isLoading}>
+            <Done />
+          </IconButton>
+        </>
+      ) : (
+        <>
+          <Typography variant="h4">{groupDetails?.data?.chat?.name}</Typography>
+          <IconButton disabled={isLoading} onClick={() => setIsEdit(true)}>
+            <Edit />
+          </IconButton>
+        </>
+      )}
+    </Stack>
+  );
+
   const ButtonGroup = (
     <Stack
       direction={{
@@ -163,7 +226,7 @@ const Groups = () => {
         startIcon={<Delete />}
         onClick={openConfirmDeleteHandler}
       >
-        Delete Group{" "}
+        Delete Group
       </Button>
       <Button
         size="large"
@@ -176,7 +239,9 @@ const Groups = () => {
     </Stack>
   );
 
-  return (
+  return myGroups.isLoading ? (
+    <LayoutLoader />
+  ) : (
     <Grid container height={"100vh"}>
       <Grid
         item
@@ -188,8 +253,9 @@ const Groups = () => {
           },
         }}
       >
-        <GroupsList myGroups={sampleChats} chatId={chatId} />
+        <GroupsList myGroups={myGroups?.data?.groups} chatId={chatId} />
       </Grid>
+      
       <Grid
         item
         xs={12}
@@ -202,16 +268,16 @@ const Groups = () => {
           padding: "1rem 2rem",
         }}
       >
-        <IconBtns />
+        {IconBtns}
         {groupName && (
           <>
-            <GroupName />
+            {GroupName}
             <Typography
               margin={"2rem"}
               alignSelf={"flex-start"}
               variant="body1"
             >
-              Memebers
+              Members
             </Typography>
             <Stack
               maxWidth={"45rem"}
@@ -226,27 +292,31 @@ const Groups = () => {
               height={"50vh"}
               overflow={"auto"}
             >
-              {sampleUsers.map((i) => (
-                <UserItem
-                  key={i._id}
-                  user={i}
-                  isAdded
-                  styling={{
-                    boxShadow: "0 0 0.5rem rgba(0,0,0,0.2)",
-                    padding: "1rem 2rem",
-                    borderRadius: "1rem",
-                  }}
-                  handler={removeMemberHandler}
-                />
-              ))}
+              {isLoadingRemoveMember ? (
+                <CircularProgress />
+              ) : (
+                members.map((i) => (
+                  <UserItem
+                    key={i._id}
+                    user={i}
+                    isAdded
+                    styling={{
+                      boxShadow: "0 0 0.5rem rgba(0,0,0,0.2)",
+                      padding: "1rem 2rem",
+                      borderRadius: "1rem",
+                    }}
+                    handler={removeMemberHandler}
+                  />
+                ))
+              )}
             </Stack>
             {ButtonGroup}
           </>
         )}
       </Grid>
-      {isAddMemeber && (
+      {isAddMember && (
         <Suspense fallback={<Backdrop open />}>
-          <AddMemberDialog />
+          <AddMemberDialog chatId={chatId} />
         </Suspense>
       )}
       {confirmDeleteDialog && (
@@ -270,7 +340,11 @@ const Groups = () => {
         open={isMobileMenuIconOpen}
         onClose={handleMobileClose}
       >
-        <GroupsList w={"50w"} myGroups={sampleChats} chatId={chatId} />
+        <GroupsList
+          w={"50w"}
+          myGroups={myGroups?.data?.groups}
+          chatId={chatId}
+        />
       </Drawer>
     </Grid>
   );
@@ -281,6 +355,7 @@ const GroupsList = ({ w = "100%", myGroups = [], chatId }) => (
     sx={{
       bgcolor: orange,
       height: "100vh",
+      overflow:"auto"
     }}
   >
     {myGroups.length > 0 ? (
