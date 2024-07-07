@@ -12,6 +12,7 @@ import {
   Drawer,
   Grid,
   IconButton,
+  Skeleton,
   Stack,
   Typography,
   styled,
@@ -19,7 +20,11 @@ import {
 import React, { useState } from "react";
 import { useLocation, Link as LinkComponent } from "react-router-dom";
 import { grayColor, matBlack } from "../../constants/color";
-
+import axios from "axios";
+import { server } from "../../constants/config";
+import { useDispatch } from "react-redux";
+import { adminNotExists } from "../../redux/reducers/auth";
+import toast from "react-hot-toast";
 const Link = styled(LinkComponent)`
   text-decoration: none;
   border-radius: 2rem;
@@ -50,13 +55,23 @@ const adminTabs = [
     path: "/admin/messages",
     icon: <Message />,
   },
-  {
-    name: "Logout",
-    icon: <Logout />,
-  },
 ];
 const SideBar = ({ w = "100%" }) => {
+  const dispatch = useDispatch();
   const location = useLocation();
+  const logoutHandler = async () => {
+    try {
+      const { data } = await axios.get(
+        `${server}/api/v1/admin/logout`,
+        { withCredentials: true },
+        { headers: { "Content-Type": "application/json" } }
+      );
+      if (data?.success) dispatch(adminNotExists());
+      toast.success(data?.message);
+    } catch (err) {
+      toast.error(err?.response?.data?.message);
+    } 
+  };
   return (
     <Stack width={w} direction={"column"} p={"3rem"} spacing={"3rem"}>
       <Typography variant="h5" textTransform={"uppercase"}>
@@ -83,6 +98,12 @@ const SideBar = ({ w = "100%" }) => {
             </Link>
           </>
         ))}
+        <Link onClick={logoutHandler}>
+          <Stack direction={"row"} alignItems={"center"} spacing={"1rem"}>
+            <Logout />
+            <Typography>Logout</Typography>
+          </Stack>
+        </Link>
       </Stack>
     </Stack>
   );

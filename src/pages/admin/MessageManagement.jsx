@@ -1,13 +1,16 @@
 import { Avatar, Box, Stack } from "@mui/material";
+import moment from "moment";
 import React, { useEffect, useMemo, useState } from "react";
+import RenderAttachments from "../../components/shared/RenderAttachments";
 import Table from "../../components/shared/Table";
 import { fileFormat, transformImage } from "../../lib/features";
+import { useAdminMessageDataQuery } from "../../redux/api/api";
 import AdminLayout from "./AdminLayout";
-import moment from "moment";
-import { messageData } from "../../constants/sampledata";
-import RenderAttachments from "../../components/shared/RenderAttachments";
+import { useErrors } from "../../hooks/hook";
 
 const MessageManagement = () => {
+  const{data,isError,error,isLoading}=useAdminMessageDataQuery();
+  useErrors([{isError,error}]);
   const columns = useMemo(
     () => [
       {
@@ -92,18 +95,21 @@ const MessageManagement = () => {
   const [rows, setRows] = useState([]);
 
   useEffect(() => {
-    setRows(
-      messageData.messages.map((i) => ({
-        ...i,
-        id: i._id,
-        sender: {
-          name: i.sender.name,
-          avatar: transformImage(i.sender.avatar, 50),
-        },
-        createdAt: moment(i.createdAt).format("MMMM Do YYYY, h:mm:ss a"),
-      }))
-    );
-  }, []);
+    if(data){
+      setRows(
+        data.messages.map((i) => ({
+         ...i,
+         id: i._id,
+         sender: {
+           name: i.sender.name,
+           avatar: transformImage(i.sender.avatar, 50),
+         },
+         createdAt: moment(i.createdAt).format("MMMM Do YYYY, h:mm:ss a"),
+       }))
+     );
+    }
+ 
+  }, [data,isError,isLoading]);
 
   return (
     <AdminLayout>

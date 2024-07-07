@@ -1,3 +1,5 @@
+import { useFileHandler, useInputValidation, useStrongPassword } from "6pp";
+import { CameraAlt as CameraAltIcon } from "@mui/icons-material";
 import {
   Avatar,
   Button,
@@ -8,18 +10,17 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { CameraAlt as CameraAltIcon } from "@mui/icons-material";
-import React, { useState } from "react";
-import { VisuallyHiddenInput } from "../components/styles/StyledComponent";
-import { useFileHandler, useInputValidation, useStrongPassword } from "6pp";
-import { usernameValidator } from "../utils/validators";
-import { server } from "../constants/config";
-import { useDispatch } from "react-redux";
-import { userExists } from "../redux/reducers/auth";
-import toast from "react-hot-toast";
 import axios from "axios";
+import React, { useState } from "react";
+import toast from "react-hot-toast";
+import { useDispatch } from "react-redux";
+import { VisuallyHiddenInput } from "../components/styles/StyledComponent";
+import { server } from "../constants/config";
+import { userExists } from "../redux/reducers/auth";
+import { usernameValidator } from "../utils/validators";
 const Login = () => {
   const [isLogin, setIsLogin] = useState(true);
+  const [loading, setLoading] = useState(false);
   const name = useInputValidation("");
   const username = useInputValidation("", usernameValidator);
   const password = useStrongPassword("");
@@ -28,6 +29,8 @@ const Login = () => {
   const dispatch = useDispatch();
   const handleLogin = async (e) => {
     e.preventDefault();
+    const toastId=toast.loading("Logging In...")
+    setLoading(true);
     const config = {
       withCredentials: true,
       headers: { "Content-Type": "application/json" },
@@ -41,15 +44,19 @@ const Login = () => {
         },
         config
       );
-      dispatch(userExists(true));
-      toast.success(data.message);
+      dispatch(userExists(data.user));
+      toast.success(data.message,{id:toastId});
     } catch (err) {
       console.log(err);
-      toast.error(err.response?.data?.message || "Something went wrong");
+      toast.error(err.response?.data?.message || "Something went wrong",{id:toastId});
+    } finally {
+      setLoading(false);
     }
   };
   const handleSignIn = async (e) => {
     e.preventDefault();
+    const toastId=toast.loading("Signing Up...");
+    setLoading(true);
     const formData = new FormData();
     formData.append("avatar", avatar.file);
     formData.append("name", name.value);
@@ -65,9 +72,11 @@ const Login = () => {
         },
       });
       dispatch(userExists(true));
-      toast.success(data.message);
+      toast.success(data.message,{id:toastId});
     } catch (err) {
-      toast.error(err.response?.data?.message || "Something went wrong");
+      toast.error(err.response?.data?.message || "Something went wrong",{id:toastId});
+    } finally {
+      setLoading(false);
     }
   };
   return (
@@ -127,6 +136,7 @@ const Login = () => {
                   fullWidth
                   color="primary"
                   type="submit"
+                  disabled={loading}
                 >
                   Login
                 </Button>
@@ -138,6 +148,7 @@ const Login = () => {
                   fullWidth
                   variant="text"
                   onClick={() => setIsLogin(false)}
+                  disabled={loading}
                 >
                   SignUp Instead
                 </Button>
@@ -243,6 +254,7 @@ const Login = () => {
                   fullWidth
                   color="primary"
                   type="submit"
+                  disabled={loading}
                 >
                   Sign Up
                 </Button>
@@ -254,6 +266,7 @@ const Login = () => {
                   fullWidth
                   variant="text"
                   onClick={() => setIsLogin(true)}
+                  disabled={loading}
                 >
                   Login Instead
                 </Button>

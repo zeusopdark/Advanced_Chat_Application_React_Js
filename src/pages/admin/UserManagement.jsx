@@ -1,10 +1,15 @@
-import React, { useEffect, useState } from "react";
-import AdminLayout from "./AdminLayout";
-import Table from "../../components/shared/Table";
-import { dashboardData } from "../../constants/sampledata";
-import { transformImage } from "../../lib/features";
 import { Avatar } from "@mui/material";
+import React, { useEffect, useState } from "react";
+import { LayoutLoader } from "../../components/layout/Loaders";
+import Table from "../../components/shared/Table";
+import { useErrors } from "../../hooks/hook";
+import { transformImage } from "../../lib/features";
+import { useAdminUserDetailsQuery } from "../../redux/api/api";
+import AdminLayout from "./AdminLayout";
 const UserManagement = () => {
+  const { data, isError, error, isLoading } = useAdminUserDetailsQuery();
+  const errors = [{ isError, error }];
+  useErrors(errors);
   const columns = [
     {
       field: "id",
@@ -41,7 +46,7 @@ const UserManagement = () => {
     },
     {
       field: "group",
-      headerName: "Group",
+      headerName: "Groups",
       headerClassName: "table-header",
       width: 200,
     },
@@ -49,14 +54,17 @@ const UserManagement = () => {
   const [rows, setRows] = useState([]);
   useEffect(() => {
     setRows(
-      dashboardData.users.map((i) => ({
+      !isLoading&&data?.users.map((i) => ({
         ...i,
         id: i._id,
         avatar: transformImage(i.avatar, 50),
+        group: i.groups,
       }))
     );
-  }, []);
-  return (
+  }, [data, isLoading, isError]);
+  return isLoading ? (
+    <LayoutLoader />
+  ) : (
     <AdminLayout>
       <Table heading={"All Users"} columns={columns} rows={rows} />
     </AdminLayout>

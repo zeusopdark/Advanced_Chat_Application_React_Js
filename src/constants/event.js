@@ -6,3 +6,6 @@ export const New_Request = "NEW_REQUEST";
 export const New_Message = "NEW_MESSAGE";
 export const Start_Typing="START_TYPING";
 export const Stop_Typing="STOP_TYPING";
+export const Chat_Join="CHAT_JOIN";
+export const Chat_Leave="CHAT_LEAVE";
+export const Online_Users="ONLINE_USERS";

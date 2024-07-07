@@ -2,12 +2,34 @@ import React from "react";
 import { Button, Container, Paper, TextField, Typography } from "@mui/material";
 import { useInputValidation } from "6pp";
 import { Navigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { adminExists } from "../../redux/reducers/auth";
+import axios from "axios";
+import { server } from "../../constants/config";
+import toast from "react-hot-toast";
 const AdminLogin = () => {
-  const submitHandler = (e) => {
+  const dispatch=useDispatch();
+  const submitHandler = async (e) => {
     e.preventDefault();
+    const config = {
+      withCredentials: true,
+      headers: { "Content-Type": "application/json" },
+    };
+    try {
+      const { data } = await axios.post(
+        `${server}/api/v1/admin/verify`,
+        { secretKey: secretKey.value },
+        config
+      );
+      if (data?.success) dispatch(adminExists());
+      toast.success(data.message);
+    } catch (err) {
+      console.log(err);
+      toast.error(err.response.data.message);
+    }
   };
   const secretKey = useInputValidation("");
-  const isAdmin = true;
+  const { isAdmin } = useSelector((state) => state.auth);
   if (isAdmin) return <Navigate to="/admin/dashboard" />;
   return (
     <div

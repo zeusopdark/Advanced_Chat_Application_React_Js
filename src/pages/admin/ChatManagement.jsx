@@ -5,7 +5,12 @@ import Table from "../../components/shared/Table";
 import { chatData } from "../../constants/sampledata";
 import { transformImage } from "../../lib/features";
 import AdminLayout from "./AdminLayout";
+import { useAdminChatDataQuery } from "../../redux/api/api";
+import { LayoutLoader } from "../../components/layout/Loaders";
+import { useErrors } from "../../hooks/hook";
 const ChatManagement = () => {
+  const { data, isError, error, isLoading } = useAdminChatDataQuery();
+  useErrors([{isError,error}]);
   const columns = [
     {
       field: "id",
@@ -23,6 +28,12 @@ const ChatManagement = () => {
     {
       field: "name",
       headerName: "Name",
+      headerClassName: "table-header",
+      width: 300,
+    },
+    {
+      field: "groupChat",
+      headerName: "GroupChat",
       headerClassName: "table-header",
       width: 300,
     },
@@ -67,7 +78,7 @@ const ChatManagement = () => {
   const [rows, setRows] = useState([]);
   useEffect(() => {
     setRows(
-      chatData.chats.map((i) => ({
+     !isLoading&& data?.chats.map((i) => ({
         ...i,
         id: i._id,
         avatar: i.avatar.map((p) => transformImage(p, 50)),
@@ -78,8 +89,10 @@ const ChatManagement = () => {
         },
       }))
     );
-  }, []);
-  return (
+  }, [data, isError, isLoading]);
+  return isLoading ? (
+    <LayoutLoader />
+  ) : (
     <AdminLayout>
       <Table heading={"All Chats"} columns={columns} rows={rows} />
     </AdminLayout>

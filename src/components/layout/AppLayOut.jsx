@@ -1,5 +1,5 @@
 import { Drawer, Grid, Skeleton } from "@mui/material";
-import React, { useCallback, useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useParams } from "react-router-dom";
 import { useErrors, useSocketEvents } from "../../../src/hooks/hook";
@@ -13,7 +13,12 @@ import Title from "../shared/Title";
 import ChatList from "../specific/ChatList";
 import Profile from "../specific/Profile";
 import Header from "./Header";
-import { New_Message_Alert, New_Request, Refetch } from "../../constants/event";
+import {
+  New_Message_Alert,
+  New_Request,
+  Online_Users,
+  Refetch,
+} from "../../constants/event";
 import {
   incrementNotification,
   setNewMessagesALert,
@@ -27,13 +32,25 @@ const AppLayOut = () => (WrappedComponent) => {
     const dispatch = useDispatch();
     const navigate = useNavigate();
     const params = useParams();
-    const chatId = params.chatId;
     const socket = getSocket();
-    const { isLoading, data, isError, error, refetch } = useMyChatsQuery("");
+
+    const chatId = params.chatId;
+    const deleteMenuAnchor = useRef();
+
+    const [onlineUsers, setOnlineUsers] = useState([]);
+
+    const { user } = useSelector((state) => state.auth);
     const { isMobileMenu } = useSelector((state) => state.misc);
     const { newMessageAlert } = useSelector((state) => state.chat);
-    const deleteMenuAnchor = useRef();
-    const handleDeleteChat = (e,chatId, groupChat) => {
+
+    const { isLoading, data, isError, error, refetch } = useMyChatsQuery("");
+    useErrors([{ isError, error }]);
+
+    useEffect(() => {
+      getOrSaveFromStorage({ key: New_Message_Alert, value: newMessageAlert });
+    }, [newMessageAlert]);
+
+    const handleDeleteChat = (e, chatId, groupChat) => {
       dispatch(setIsDeleteMenu(true));
       dispatch(setSelectedDeleteChat({ chatId, groupChat }));
       deleteMenuAnchor.current = e.currentTarget;
@@ -42,29 +59,37 @@ const AppLayOut = () => (WrappedComponent) => {
     const handleMobileClose = async () => {
       dispatch(setIsMobileMenu(false));
     };
-    const newMessageAlertHandler = useCallback((data) => {
-      if (data.chatId === chatId) return;
-      dispatch(setNewMessagesALert(data));
-    }, []);
+
+    const newMessageAlertHandler = useCallback(
+      (data) => {
+        if (data.chatId === chatId) return;
+        dispatch(setNewMessagesALert(data));
+      },
+      [chatId]
+    );
+
     const newRequestHandler = useCallback(() => {
       dispatch(incrementNotification());
     }, [dispatch]);
+
     const refetchListener = useCallback(() => {
       refetch();
       navigate("/");
     }, [refetch, navigate]);
 
+    const onlineUserListener = useCallback((data) => {
+      setOnlineUsers(data);
+    }, []);
+
     const eventHandlers = {
       [New_Message_Alert]: newMessageAlertHandler,
       [New_Request]: newRequestHandler,
       [Refetch]: refetchListener,
+      [Online_Users]: onlineUserListener,
     };
+
     useSocketEvents(socket, eventHandlers);
 
-    useErrors([{ isError, error }]);
-    useEffect(() => {
-      getOrSaveFromStorage({ key: New_Message_Alert, value: newMessageAlert });
-    }, [newMessageAlert]);
     return (
       <>
         <Title />
@@ -83,6 +108,7 @@ const AppLayOut = () => (WrappedComponent) => {
               chatId={chatId}
               handleDeleteChat={handleDeleteChat}
               newMessagesAlert={newMessageAlert}
+              onlineUser={onlineUsers}
             />
           </Drawer>
         )}
@@ -102,11 +128,12 @@ const AppLayOut = () => (WrappedComponent) => {
                 chatId={chatId}
                 handleDeleteChat={handleDeleteChat}
                 newMessagesAlert={newMessageAlert}
+                onlineUser={onlineUsers}
               />
             )}
           </Grid>
           <Grid item xs={12} sm={8} md={5} lg={6} height={"100%"}>
-            <WrappedComponent {...props} chatId={chatId} />
+            <WrappedComponent {...props} chatId={chatId} user={user} />
           </Grid>
           <Grid
             item

@@ -64,7 +64,7 @@ const Header = () => {
 
   const handleLogout = async () => {
     try {
-      const { data } = await axios.get(`${server}/api/v1/user/logout`);
+      const { data } = await axios.get(`${server}/api/v1/user/logout`,{withCredentials:true},{headers:{"Content-Type":"application/json"}});
       toast.success(data.message);
       dispatch(userNotExists());
     } catch (err) {

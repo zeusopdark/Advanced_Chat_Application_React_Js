@@ -1,6 +1,6 @@
 import React from "react";
 import AdminLayout from "./AdminLayout";
-import { Box, Container, Paper, Stack, Typography } from "@mui/material";
+import { Box, Container, Paper, Skeleton, Stack, Typography } from "@mui/material";
 import {
   AdminPanelSettings,
   Group,
@@ -14,7 +14,13 @@ import {
   SearchField,
 } from "../../components/styles/StyledComponent";
 import { DoughnutChart, LineChart } from "../../components/specific/Charts";
+import { useAdminDashBoardDataQuery } from "../../redux/api/api";
+import { LayoutLoader } from "../../components/layout/Loaders";
+import { useErrors } from "../../hooks/hook";
 const DashBoard = () => {
+  const { data, error, isError, isLoading } = useAdminDashBoardDataQuery();
+  const statsData = data?.stats;
+  useErrors([{ error, isError }]);
   const Appbar = (
     <Paper
       elevation={3}
@@ -51,13 +57,23 @@ const DashBoard = () => {
       margin={"2rem 0"}
       gap={"2rem"}
     >
-      <Widget title={"Users"} value={"34"} icon={<Person />} />
-      <Widget title={"Chats"} value={"3"} icon={<Group />} />
-      <Widget title={"Messages"} value={"454"} icon={<Message />} />
+      <Widget title={"Users"} value={statsData?.usersCount} icon={<Person />} />
+      <Widget
+        title={"Chats"}
+        value={statsData?.groupsCount}
+        icon={<Group />}
+      />
+      <Widget
+        title={"Messages"}
+        value={statsData?.messagesCount}
+        icon={<Message />}
+      />
     </Stack>
   );
 
-  return (
+  return isLoading ? (
+    <LayoutLoader />
+  ) : (
     <AdminLayout>
       <Container component={"main"}>
         {Appbar}
@@ -86,7 +102,7 @@ const DashBoard = () => {
             <Typography variant="h4" margin={"2rem 0"}>
               Last Messages
             </Typography>
-            <LineChart value={[1, 2, 9, 4, 2, 0, 8]} />
+            <LineChart value={statsData?.messagesChart || []} />
           </Paper>
           <Paper
             elevation={3}
@@ -104,7 +120,10 @@ const DashBoard = () => {
           >
             <DoughnutChart
               labels={["Single Chats", "Group Chats"]}
-              value={[23, 36]}
+              value={[
+                statsData?.totalChatsCount - statsData?.groupsCount || 0,
+                statsData?.groupsCount,
+              ]}
             />
             <Stack
               position={"absolute"}

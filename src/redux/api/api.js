@@ -5,7 +5,7 @@ import { server } from "../../constants/config";
 const api = createApi({
   reducerPath: "api",
   baseQuery: fetchBaseQuery({ baseUrl: `${server}/api/v1/` }),
-  tagTypes: ["Chat", "User", "Message"], //so this is related with catching by default below endpoint will do catching which is ok in case of get request (query) but in case of mutation(post req)we need new data so we have to make sure that the data is up to data and this is where we use tagTypes
+  tagTypes: ["Chat", "User", "Message","dashboard-stats"], //so this is related with catching by default below endpoint will do catching which is ok in case of get request (query) but in case of mutation(post req)we need new data so we have to make sure that the data is up to data and this is where we use tagTypes
 
   endpoints: (builder) => ({
     myChats: builder.query({
@@ -117,7 +117,7 @@ const api = createApi({
         url: `chat/removemembers`,
         method: "PUT",
         credentials: "include",
-        body: { chatId,userId },
+        body: { chatId, userId },
       }),
       invalidatesTags: ["Chat"],
     }),
@@ -126,7 +126,7 @@ const api = createApi({
         url: `chat/addmembers`,
         method: "PUT",
         credentials: "include",
-        body: { chatId,members },
+        body: { chatId, members },
       }),
       invalidatesTags: ["Chat"],
     }),
@@ -146,6 +146,34 @@ const api = createApi({
       }),
       invalidatesTags: ["Chat"],
     }),
+    adminUserDetails: builder.query({
+      query: () => ({
+        url: "admin/users",
+        credentials: "include",
+      }),
+      providesTags: ["User"],
+    }),
+    adminDashBoardData: builder.query({
+      query: () => ({
+        url: "admin/stats",
+        credentials: "include",
+      }),
+    provideTags:["dashboard-stats"]
+    }),
+    adminChatData:builder.query({
+      query:()=>({
+        url:"admin/chats",
+        credentials:"include"
+      }),
+      providesTags:["Chat"]
+    }),
+    adminMessageData:builder.query({
+      query:()=>({
+        url:"admin/messages",
+        credentials:"include"
+      }),
+      providesTags:["Message"]
+    })
   }),
 });
 
@@ -166,5 +194,9 @@ export const {
   useRemoveGroupMemberMutation,
   useAddGroupMemberMutation,
   useDeleteChatMutation,
-  useLeaveGroupMutation
+  useLeaveGroupMutation,
+  useAdminUserDetailsQuery,
+  useAdminDashBoardDataQuery,
+  useAdminChatDataQuery,
+  useAdminMessageDataQuery
 } = api; //the lazy one is used to trigger the api call manually
